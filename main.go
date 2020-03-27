@@ -1,9 +1,12 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -16,11 +19,16 @@ type resource struct {
 	selector string
 }
 
+type body struct {
+	Data []string
+}
+
 func getDocument(URL string) *goquery.Document {
+	log.Println("Creating Document for URL: ", URL)
 	// Make HTTP request
 	response, err := http.Get(URL)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("Error making HTTP request to: { ", URL, " }: ", err)
 	}
 	defer response.Body.Close()
 
@@ -29,14 +37,8 @@ func getDocument(URL string) *goquery.Document {
 	if err != nil {
 		log.Fatal("Error loading HTTP response body. ", err)
 	}
-
+	log.Println("Successfully Created Document")
 	return document
-}
-
-// This will get called for each HTML element found
-func processElement(index int, element *goquery.Selection) {
-	// See if the href attribute exists on the element
-	fmt.Println(element.Text())
 }
 
 func main() {
@@ -47,6 +49,7 @@ func main() {
 
 	docs := make([]*goquery.Document, 2)
 
+	log.Println("Attempting to create goquery documents...")
 	// get documents
 	docs[0] = getDocument("https://www.canada.ca/en/public-health/services/diseases/2019-novel-coronavirus-infection.html")
 	docs[1] = getDocument("https://www.quebec.ca/en/health/health-issues/a-z/2019-coronavirus/situation-coronavirus-in-quebec/")
@@ -88,16 +91,42 @@ func main() {
 			selector: ".table-striped > tbody:nth-child(3) > tr:nth-child(15) > td:nth-child(4) > strong:nth-child(1)",
 		},
 	}
+	log.Println("Attempting to scrape goquery documents...")
 	for _, res := range resources {
 		// for each resource in resources array
 
-		// Find all links and process them with the function
-		// defined earlier
+		// Find all counts and push to values
 		res.document.Find(res.selector).Each(func(index int, element *goquery.Selection) {
 			t := element.Text()
 			t = strings.ReplaceAll(t, ",", "")
 			values = append(values, t)
 		})
 	}
-	fmt.Printf("\n%v\n", values)
+	log.Println("Successfully scraped Document")
+	b := body{
+		Data: values,
+	}
+	// fmt.Printf("b= %v\n", b)
+	j, e := json.Marshal(b)
+	// fmt.Printf("j= %v\ne= %v", string(j), e)
+
+	sHostEnv := os.Getenv("SERVICENAME_HOST")
+
+	var serviceHostname string
+
+	if sHostEnv == "" {
+		log.Println("Please use environment variables to designate updateListener service in a cloud deployment")
+		serviceHostname = "localhost:8080"
+	} else {
+		serviceHostname = sHostEnv
+	}
+
+	log.Println("Attempting to send data to the update service...")
+	r, e := http.Post(fmt.Sprintf("http://%v", serviceHostname), "application/json", bytes.NewBuffer(j))
+	if e != nil {
+		log.Fatalln("Failed to send data to the update service", e)
+	} else {
+		log.Println("Successfully sent data to the update service")
+	}
+	defer r.Body.Close()
 }
