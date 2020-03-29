@@ -81,11 +81,11 @@ func main() {
 	j, e := json.Marshal(b)
 	fmt.Printf("j= %v\ne= %v", string(j), e)
 
-	sHostEnv := os.Getenv("SERVICENAME_HOST")
+	sHostEnv := fmt.Sprintf("%v:%v", os.Getenv("UPDATE_LISTENER_SERVICE_HOST"), os.Getenv("UPDATE_LISTENER_SERVICE_PORT"))
 
 	var serviceHostname string
 
-	if sHostEnv == "" {
+	if sHostEnv == ":" {
 		log.Println("Please use environment variables to designate updateListener service in a cloud deployment")
 		serviceHostname = "localhost:8080"
 	} else {
