@@ -49,6 +49,13 @@ func getDocument(URL string) *goquery.Document {
 	return document
 }
 
+func cleanStrings(arr []string) {
+	for idx := range arr {
+		arr[idx] = strings.ReplaceAll(arr[idx], ",", "")
+		arr[idx] = strings.ReplaceAll(arr[idx], " ", "")
+	}
+}
+
 func main() {
 	dt := csvget.ReadCSVFromURL("https://health-infobase.canada.ca/src/data/covidLive/covid19.csv")
 	canadaRow := dt.GetCurrentFromUID("1")
@@ -73,7 +80,9 @@ func main() {
 		t = strings.ReplaceAll(t, " ", "")
 		confMont = t
 	})
-	values := []string{time.Now().Format("02/01/2006"), quebecData.Prob, canadaData.Prob, confMont, quebecData.Conf, canadaData.Conf, quebecData.Death, canadaData.Death}
+
+	values := []string{time.Now().Format("2 Jan 2006 15:04:05"), quebecData.Prob, canadaData.Prob, confMont, quebecData.Conf, canadaData.Conf, quebecData.Death, canadaData.Death}
+	cleanStrings(values)
 	b := body{
 		Data: values,
 	}
