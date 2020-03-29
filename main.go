@@ -82,7 +82,7 @@ func main() {
 	})
 
 	values := []string{time.Now().Format("2 Jan 2006 15:04:05"), quebecData.Prob, canadaData.Prob, confMont, quebecData.Conf, canadaData.Conf, quebecData.Death, canadaData.Death}
-	cleanStrings(values)
+	cleanStrings(values[1:])
 	b := body{
 		Data: values,
 	}
