@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ssd71/ex8j/csvget"
+
 	"github.com/PuerkitoBio/goquery"
 )
 
@@ -21,6 +23,12 @@ type resource struct {
 
 type body struct {
 	Data []string
+}
+
+type data struct {
+	Prob  string
+	Conf  string
+	Death string
 }
 
 func getDocument(URL string) *goquery.Document {
@@ -42,73 +50,36 @@ func getDocument(URL string) *goquery.Document {
 }
 
 func main() {
-	values := make([]string, 0, 8)
-
-	s := time.Now().Format("02/01/2006")
-	values = append(values, s)
-
-	docs := make([]*goquery.Document, 2)
-
-	log.Println("Attempting to create goquery documents...")
-	// get documents
-	docs[0] = getDocument("https://www.canada.ca/en/public-health/services/diseases/2019-novel-coronavirus-infection.html")
-	docs[1] = getDocument("https://www.quebec.ca/en/health/health-issues/a-z/2019-coronavirus/situation-coronavirus-in-quebec/")
-
-	resources := [7]resource{
-		resource{
-			name:     "probQuebec",
-			document: docs[0],
-			selector: ".table-striped > tbody:nth-child(3) > tr:nth-child(6) > td:nth-child(3)",
-		},
-		resource{
-			name:     "probCanada",
-			document: docs[0],
-			selector: ".table-striped > tbody:nth-child(3) > tr:nth-child(15) > td:nth-child(3) > strong:nth-child(1)",
-		},
-		resource{
-			name:     "confMontreal",
-			document: docs[1],
-			selector: ".contenttable > tbody:nth-child(3) > tr:nth-child(6) > td:nth-child(2) > p:nth-child(1)",
-		},
-		resource{
-			name:     "confQuebec",
-			document: docs[0],
-			selector: ".table-striped > tbody:nth-child(3) > tr:nth-child(6) > td:nth-child(2)",
-		},
-		resource{
-			name:     "confCanada",
-			document: docs[0],
-			selector: ".table-striped > tbody:nth-child(3) > tr:nth-child(15) > td:nth-child(2) > strong:nth-child(1)",
-		},
-		resource{
-			name:     "deathQuebec",
-			document: docs[0],
-			selector: ".table-striped > tbody:nth-child(3) > tr:nth-child(6) > td:nth-child(4)",
-		},
-		resource{
-			name:     "deathCanada",
-			document: docs[0],
-			selector: ".table-striped > tbody:nth-child(3) > tr:nth-child(15) > td:nth-child(4) > strong:nth-child(1)",
-		},
+	dt := csvget.ReadCSVFromURL("https://health-infobase.canada.ca/src/data/covidLive/covid19.csv")
+	canadaRow := dt.GetCurrentFromUID("1")
+	canadaData := data{
+		Conf:  canadaRow.Values[4],
+		Prob:  canadaRow.Values[5],
+		Death: canadaRow.Values[6],
 	}
-	log.Println("Attempting to scrape goquery documents...")
-	for _, res := range resources {
-		// for each resource in resources array
-
-		// Find all counts and push to values
-		res.document.Find(res.selector).Each(func(index int, element *goquery.Selection) {
-			t := element.Text()
-			t = strings.ReplaceAll(t, ",", "")
-			values = append(values, t)
-		})
+	quebecRow := dt.GetCurrentFromUID("24")
+	quebecData := data{
+		Conf:  quebecRow.Values[4],
+		Prob:  quebecRow.Values[5],
+		Death: quebecRow.Values[6],
 	}
-	log.Println("Successfully scraped Document")
+	fmt.Println(canadaData, quebecData)
+
+	var confMont string
+	mondoc := getDocument("https://www.quebec.ca/en/health/health-issues/a-z/2019-coronavirus/situation-coronavirus-in-quebec/")
+	mondoc.Find(".contenttable > tbody:nth-child(3) > tr:nth-child(6) > td:nth-child(2) > p:nth-child(1)").Each(func(i int, e *goquery.Selection) {
+		t := e.Text()
+		t = strings.ReplaceAll(t, ",", "")
+		t = strings.ReplaceAll(t, " ", "")
+		confMont = t
+	})
+	values := []string{time.Now().Format("02/01/2006"), quebecData.Prob, canadaData.Prob, confMont, quebecData.Conf, canadaData.Conf, quebecData.Death, canadaData.Death}
 	b := body{
 		Data: values,
 	}
-	// fmt.Printf("b= %v\n", b)
+
 	j, e := json.Marshal(b)
-	// fmt.Printf("j= %v\ne= %v", string(j), e)
+	fmt.Printf("j= %v\ne= %v", string(j), e)
 
 	sHostEnv := os.Getenv("SERVICENAME_HOST")
 
