@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 
@@ -49,13 +50,6 @@ func getDocument(URL string) *goquery.Document {
 	return document
 }
 
-func cleanStrings(arr []string) {
-	for idx := range arr {
-		arr[idx] = strings.ReplaceAll(arr[idx], ",", "")
-		arr[idx] = strings.ReplaceAll(arr[idx], " ", "")
-	}
-}
-
 func main() {
 	dt := csvget.ReadCSVFromURL("https://health-infobase.canada.ca/src/data/covidLive/covid19.csv")
 	canadaRow := dt.GetCurrentFromUID("1")
@@ -82,7 +76,17 @@ func main() {
 	})
 
 	values := []string{time.Now().Format("2 Jan 2006 15:04:05"), quebecData.Prob, canadaData.Prob, confMont, quebecData.Conf, canadaData.Conf, quebecData.Death, canadaData.Death}
-	cleanStrings(values[1:])
+
+	reg, err := regexp.Compile("[^a-zA-Z0-9]+")
+	if err != nil {
+		log.Fatalln("Failed to compile regular expressions: ", err)
+	}
+	for idx, v := range values {
+		if idx > 0 {
+			values[idx] = reg.ReplaceAllString(v, "")
+		}
+	}
+
 	b := body{
 		Data: values,
 	}
